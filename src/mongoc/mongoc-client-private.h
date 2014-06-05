@@ -41,6 +41,7 @@ BSON_BEGIN_DECLS
 
 struct _mongoc_client_t
 {
+   int32_t                    ref_count;
    uint32_t                   request_id;
    mongoc_list_t             *conns;
    mongoc_uri_t              *uri;

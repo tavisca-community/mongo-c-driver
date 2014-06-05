@@ -151,7 +151,7 @@ _mongoc_collection_new (mongoc_client_t              *client,
    bson_return_val_if_fail(collection, NULL);
 
    col = bson_malloc0(sizeof *col);
-   col->client = client;
+   col->client = mongoc_client_ref (client);
    col->write_concern = write_concern ?
       mongoc_write_concern_copy(write_concern) :
       mongoc_write_concern_new();
@@ -196,23 +196,28 @@ mongoc_collection_destroy (mongoc_collection_t *collection) /* IN */
 {
    ENTRY;
 
-   bson_return_if_fail(collection);
+   bson_return_if_fail (collection);
 
    bson_clear (&collection->gle);
 
-   _mongoc_buffer_destroy(&collection->buffer);
+   _mongoc_buffer_destroy (&collection->buffer);
 
    if (collection->read_prefs) {
-      mongoc_read_prefs_destroy(collection->read_prefs);
+      mongoc_read_prefs_destroy (collection->read_prefs);
       collection->read_prefs = NULL;
    }
 
    if (collection->write_concern) {
-      mongoc_write_concern_destroy(collection->write_concern);
+      mongoc_write_concern_destroy (collection->write_concern);
       collection->write_concern = NULL;
    }
 
-   bson_free(collection);
+   if (collection->client) {
+      mongoc_client_unref (collection->client);
+      collection->client = NULL;
+   }
+
+   bson_free (collection);
 
    EXIT;
 }

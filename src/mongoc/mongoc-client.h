@@ -77,6 +77,9 @@ typedef mongoc_stream_t *(*mongoc_stream_initiator_t) (const mongoc_uri_t       
 
 mongoc_client_t               *mongoc_client_new                  (const char                   *uri_string);
 mongoc_client_t               *mongoc_client_new_from_uri         (const mongoc_uri_t           *uri);
+mongoc_client_t               *mongoc_client_ref                  (mongoc_client_t              *client);
+void                           mongoc_client_destroy              (mongoc_client_t              *client);
+void                           mongoc_client_unref                (mongoc_client_t              *client);
 const mongoc_uri_t            *mongoc_client_get_uri              (const mongoc_client_t        *client);
 void                           mongoc_client_set_stream_initiator (mongoc_client_t              *client,
                                                                    mongoc_stream_initiator_t     initiator,
@@ -96,7 +99,6 @@ bool                           mongoc_client_command_simple       (mongoc_client
                                                                    const mongoc_read_prefs_t    *read_prefs,
                                                                    bson_t                       *reply,
                                                                    bson_error_t                 *error);
-void                           mongoc_client_destroy              (mongoc_client_t              *client);
 mongoc_database_t             *mongoc_client_get_database         (mongoc_client_t              *client,
                                                                    const char                   *name);
 mongoc_gridfs_t               *mongoc_client_get_gridfs           (mongoc_client_t              *client,

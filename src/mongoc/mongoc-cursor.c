@@ -172,7 +172,7 @@ _mongoc_cursor_new (mongoc_client_t           *client,
     * design is simplified error handling by API consumers.
     */
 
-   cursor->client = client;
+   cursor->client = mongoc_client_ref (client);
    bson_strncpy (cursor->ns, db_and_collection, sizeof cursor->ns);
    cursor->nslen = (uint32_t)strlen(cursor->ns);
    cursor->flags = flags;
@@ -351,6 +351,11 @@ _mongoc_cursor_destroy (mongoc_cursor_t *cursor)
    bson_destroy(&cursor->fields);
    _mongoc_buffer_destroy(&cursor->buffer);
    mongoc_read_prefs_destroy(cursor->read_prefs);
+
+   if (cursor->client) {
+      mongoc_client_unref (cursor->client);
+      cursor->client = NULL;
+   }
 
    bson_free(cursor);
 
@@ -943,7 +948,7 @@ _mongoc_cursor_clone (const mongoc_cursor_t *cursor)
 
    _clone = bson_malloc0 (sizeof *_clone);
 
-   _clone->client = cursor->client;
+   _clone->client = mongoc_client_ref (cursor->client);
    _clone->is_command = cursor->is_command;
    _clone->flags = cursor->flags;
    _clone->skip = cursor->skip;

@@ -32,7 +32,6 @@ typedef struct
 {
    PyObject_HEAD
    mongoc_client_t *client;
-   bool             owns_client;
 } pymongoc_client_t;
 
 

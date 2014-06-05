@@ -688,6 +688,7 @@ mongoc_client_new (const char *uri_string)
    }
 
    client = bson_malloc0(sizeof *client);
+   client->ref_count = 1;
    client->uri = uri;
    client->request_id = rand ();
    client->initiator = mongoc_client_default_stream_initiator;
@@ -777,6 +778,41 @@ mongoc_client_new_from_uri (const mongoc_uri_t *uri)
 }
 
 
+void
+mongoc_client_unref (mongoc_client_t *client)
+{
+   bson_return_if_fail (client);
+   bson_return_if_fail (client->ref_count > 0);
+
+   if (bson_atomic_int_add (&client->ref_count, -1) == 0) {
+#ifdef MONGOC_ENABLE_SSL
+      bson_free (client->pem_subject);
+#endif
+
+      mongoc_write_concern_destroy (client->write_concern);
+      mongoc_read_prefs_destroy (client->read_prefs);
+      _mongoc_cluster_destroy (&client->cluster);
+      mongoc_uri_destroy (client->uri);
+      bson_free (client);
+
+      mongoc_counter_clients_active_dec ();
+      mongoc_counter_clients_disposed_inc ();
+   }
+}
+
+
+mongoc_client_t *
+mongoc_client_ref (mongoc_client_t *client)
+{
+   bson_return_val_if_fail (client, NULL);
+   bson_return_val_if_fail (client->ref_count > 0, NULL);
+
+   bson_atomic_int_add (&client->ref_count, 1);
+
+   return client;
+}
+
+
 /*
  *--------------------------------------------------------------------------
  *
@@ -798,18 +834,7 @@ void
 mongoc_client_destroy (mongoc_client_t *client)
 {
    if (client) {
-#ifdef MONGOC_ENABLE_SSL
-      bson_free (client->pem_subject);
-#endif
-
-      mongoc_write_concern_destroy (client->write_concern);
-      mongoc_read_prefs_destroy (client->read_prefs);
-      _mongoc_cluster_destroy (&client->cluster);
-      mongoc_uri_destroy (client->uri);
-      bson_free (client);
-
-      mongoc_counter_clients_active_dec ();
-      mongoc_counter_clients_disposed_inc ();
+      mongoc_client_unref (client);
    }
 }
 

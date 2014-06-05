@@ -26,11 +26,12 @@ pymongoc_client_tp_dealloc (PyObject *self)
 
    ENTRY;
 
-   if (client->owns_client && client->client) {
-      mongoc_client_destroy (client->client);
+   if (client->client) {
+      mongoc_client_unref (client->client);
+      client->client = NULL;
    }
 
-   self->ob_type->tp_free(self);
+   self->ob_type->tp_free (self);
 
    EXIT;
 }
@@ -63,8 +64,7 @@ static PyTypeObject pymongoc_client_type = {
 
 
 PyObject *
-pymongoc_client_new (mongoc_client_t *client,
-                     bool             owns_client)
+pymongoc_client_new (mongoc_client_t *client)
 {
    pymongoc_client_t *pyclient;
 
@@ -76,8 +76,7 @@ pymongoc_client_new (mongoc_client_t *client,
       return NULL;
    }
 
-   pyclient->client = client;
-   pyclient->owns_client = owns_client;
+   pyclient->client = mongoc_client_ref (client);
 
    return (PyObject *)pyclient;
 }

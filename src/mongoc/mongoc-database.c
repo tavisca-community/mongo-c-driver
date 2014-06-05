@@ -66,7 +66,7 @@ _mongoc_database_new (mongoc_client_t              *client,
    bson_return_val_if_fail(name, NULL);
 
    db = bson_malloc0(sizeof *db);
-   db->client = client;
+   db->client = mongoc_client_ref (client);
    db->write_concern = write_concern ?
       mongoc_write_concern_copy(write_concern) :
       mongoc_write_concern_new();
@@ -101,7 +101,7 @@ mongoc_database_destroy (mongoc_database_t *database)
 {
    ENTRY;
 
-   bson_return_if_fail(database);
+   bson_return_if_fail (database);
 
    if (database->read_prefs) {
       mongoc_read_prefs_destroy(database->read_prefs);
@@ -111,6 +111,11 @@ mongoc_database_destroy (mongoc_database_t *database)
    if (database->write_concern) {
       mongoc_write_concern_destroy(database->write_concern);
       database->write_concern = NULL;
+   }
+
+   if (database->client) {
+      mongoc_client_unref (database->client);
+      database->client = NULL;
    }
 
    bson_free(database);

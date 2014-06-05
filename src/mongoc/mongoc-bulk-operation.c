@@ -59,7 +59,7 @@ _mongoc_bulk_operation_new (mongoc_client_t              *client,        /* IN *
 
    bulk = bson_malloc0 (sizeof *bulk);
 
-   bulk->client = client;
+   bulk->client = mongoc_client_ref (client);
    bulk->database = bson_strdup (database);
    bulk->collection = bson_strdup (collection);
    bulk->ordered = ordered;
@@ -96,6 +96,7 @@ mongoc_bulk_operation_destroy (mongoc_bulk_operation_t *bulk) /* IN */
       mongoc_write_concern_destroy (bulk->write_concern);
       _mongoc_array_destroy (&bulk->commands);
       _mongoc_write_result_destroy (&bulk->result);
+      mongoc_client_unref (bulk->client);
 
       bson_free (bulk);
    }
