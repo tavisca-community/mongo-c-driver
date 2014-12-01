@@ -128,6 +128,7 @@ MONGOC_SOURCES_SHARED += \
 	src/mongoc/mongoc-sdam-scanner.c \
 	src/mongoc/mongoc-sdam.c \
 	src/mongoc/mongoc-server-description.c \
+	src/mongoc/mongoc-server-selection.c \
 	src/mongoc/mongoc-socket.c \
 	src/mongoc/mongoc-stream.c \
 	src/mongoc/mongoc-stream-buffered.c \
