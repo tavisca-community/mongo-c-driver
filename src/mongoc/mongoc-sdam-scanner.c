@@ -67,6 +67,9 @@ mongoc_sdam_scanner_add (mongoc_sdam_scanner_t    *ss,
    memcpy (&node->host, host, sizeof (*host));
 
    node->id = ss->seq++;
+   node->ss = ss;
+
+   DL_APPEND(ss->nodes, node);
 
    return node->id;
 }
@@ -82,7 +85,10 @@ mongoc_sdam_scanner_node_destroy (mongoc_sdam_scanner_node_t *node)
       node->current_dns_result = NULL;
    }
 
-   mongoc_async_cmd_destroy (node->cmd);
+   if (node->cmd) {
+      mongoc_async_cmd_destroy (node->cmd);
+   }
+
    mongoc_stream_destroy (node->stream);
    bson_free (node);
 }
@@ -114,6 +120,8 @@ mongoc_sdam_scanner_ismaster_handler (mongoc_async_cmd_result_t result,
 {
    mongoc_sdam_scanner_node_t *node = (mongoc_sdam_scanner_node_t *)data;
 
+   node->cmd = NULL;
+
    if (!node->ss->cb (node->id, bson, node->ss->cb_data, error)) {
       mongoc_sdam_scanner_node_destroy (node);
       return;
@@ -123,8 +131,6 @@ mongoc_sdam_scanner_ismaster_handler (mongoc_async_cmd_result_t result,
       mongoc_stream_destroy (node->stream);
       node->stream = NULL;
    }
-
-   node->cmd = NULL;
 }
 
 static mongoc_stream_t *

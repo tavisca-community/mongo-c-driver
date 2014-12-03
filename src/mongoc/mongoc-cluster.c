@@ -232,7 +232,6 @@ _mongoc_cluster_add_node (mongoc_cluster_t *cluster,
    ENTRY;
 
    BSON_ASSERT(cluster);
-   BSON_ASSERT(server);
 
    MONGOC_DEBUG("Adding new server to cluster: %s", description->connection_address);
 
