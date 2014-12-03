@@ -38,6 +38,7 @@
 #include "mongoc-sasl-private.h"
 #endif
 #include "mongoc-scram-private.h"
+#include "mongoc-sdam-private.h"
 #include "mongoc-socket.h"
 #include "mongoc-stream-private.h"
 #include "mongoc-stream-socket.h"
@@ -311,16 +312,10 @@ _mongoc_cluster_select(mongoc_cluster_t             *cluster,
       }
    }
 
-   // TODO SS: somebody has to hold on to the topology description.
-   // I don't think it should be the cluster object, because it shouldn't
-   // have to know about these things.  The cluster monitor has to own the
-   // topology description.  Maybe the client does, too?
-#if 0
-   selected_server = _mongoc_topology_description_select(optype,
-                                       NULL /* topology description */,
-                                       read_pref,
-                                       error);
-#endif
+   selected_server = _mongoc_sdam_select(cluster->client->sdam,
+                                         optype,
+                                         read_pref,
+                                         error);
 
    if (!selected_server) {
       RETURN(NULL);
