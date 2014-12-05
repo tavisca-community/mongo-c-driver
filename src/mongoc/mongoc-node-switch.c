@@ -16,6 +16,7 @@
 
 
 #include <bson.h>
+#include <stdlib.h>
 
 #include "mongoc-node-switch-private.h"
 
@@ -36,30 +37,6 @@ mongoc_node_switch_new (void)
    return ns;
 }
 
-void
-mongoc_node_switch_add (mongoc_node_switch_t *ns,
-                        uint32_t              id,
-                        mongoc_stream_t      *stream)
-{
-   assert (id < UINT32_MAX);
-
-   if (ns->nodes_len > 0) {
-      assert (ns->nodes[ns->nodes_len - 1].id < id);
-   }
-
-   if (ns->nodes_len >= ns->nodes_allocated) {
-      ns->nodes_allocated *= 2;
-      ns->nodes = bson_realloc (ns->nodes,
-                                sizeof (*ns->nodes) * ns->nodes_allocated);
-   }
-
-   ns->nodes[ns->nodes_len].id = id;
-   ns->nodes[ns->nodes_len].stream = stream;
-
-   ns->nodes_len++;
-
-}
-
 static int
 mongoc_node_switch_id_cmp (const void *a_,
                            const void *b_)
@@ -72,6 +49,27 @@ mongoc_node_switch_id_cmp (const void *a_,
    }
 
    return a->id < b->id ? -1 : 1;
+}
+
+void
+mongoc_node_switch_add (mongoc_node_switch_t *ns,
+                        uint32_t              id,
+                        mongoc_stream_t      *stream)
+{
+   if (ns->nodes_len >= ns->nodes_allocated) {
+      ns->nodes_allocated *= 2;
+      ns->nodes = bson_realloc (ns->nodes,
+                                sizeof (*ns->nodes) * ns->nodes_allocated);
+   }
+
+   ns->nodes[ns->nodes_len].id = id;
+   ns->nodes[ns->nodes_len].stream = stream;
+
+   ns->nodes_len++;
+
+   if (ns->nodes_len > 1 && ns->nodes[ns->nodes_len - 2].id > id) {
+      qsort(ns->nodes, ns->nodes_len, sizeof(*ns->nodes), mongoc_node_switch_id_cmp);
+   }
 }
 
 void

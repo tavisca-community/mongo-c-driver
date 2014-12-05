@@ -39,6 +39,10 @@ test_node_switch_new (void)
    assert( mongoc_node_switch_get(ns, 7) == streams[7]);
    assert( ! mongoc_node_switch_get(ns, 5) );
 
+   streams[5] = mongoc_stream_file_new_for_path (BINARY_DIR "/insert1.dat", O_RDONLY, 0);
+   mongoc_node_switch_add(ns, 5, streams[5]);
+   assert( mongoc_node_switch_get(ns, 5) == streams[5]);
+
    mongoc_node_switch_destroy(ns);
 }
 
