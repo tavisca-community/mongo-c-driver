@@ -118,16 +118,30 @@ _mongoc_sdam_destroy (mongoc_sdam_t *sdam)
  *
  * _mongoc_sdam_select --
  *
+ *       NOTE: this method returns a copy of the original server
+ *       description. Callers must own and clean up this copy.
+ *
  *-------------------------------------------------------------------------
  */
 mongoc_server_description_t *
-_mongoc_sdam_select (mongoc_sdam_t *sdam, mongoc_ss_optype_t optype,
-                     const mongoc_read_prefs_t *read_prefs, bson_error_t *error)
+_mongoc_sdam_select (mongoc_sdam_t *sdam,
+                     mongoc_ss_optype_t optype,
+                     const mongoc_read_prefs_t *read_prefs,
+                     bson_error_t *error)
 {
-   return _mongoc_topology_description_select(&sdam->topology,
-                                              optype,
-                                              read_prefs,
-                                              error);
+   mongoc_server_description_t *selected_server;
+
+   bson_return_val_if_fail(sdam, NULL);
+
+   selected_server = _mongoc_topology_description_select(&sdam->topology,
+                                                         optype,
+                                                         read_prefs,
+                                                         error);
+   // Q: necessary?
+   if (!selected_server) {
+      return NULL;
+   }
+   return _mongoc_server_description_new_copy(selected_server);
 }
 
 /*

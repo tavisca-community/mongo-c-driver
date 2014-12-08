@@ -437,14 +437,15 @@ _mongoc_topology_description_add_server (mongoc_topology_description_t *topology
                                          const char                    *server)
 {
    // TODO TOPOLOGY_DESCRIPTION: move this to monitor
-   mongoc_server_description_t description;
+   mongoc_server_description_t *description;
 
    if (_mongoc_topology_description_has_server(topology, server)) return;
 
-   _mongoc_server_description_init(&description, server, -1); // TODO: determine real index
+   description = bson_malloc0(sizeof *description);
+   _mongoc_server_description_init(description, server, -1); // TODO: determine real index
 
-   description.next = topology->servers;
-   topology->servers = &description;
+   description->next = topology->servers;
+   topology->servers = description;
 }
 
 /*

@@ -63,10 +63,21 @@ typedef struct _mongoc_cluster_t
    mongoc_array_t   iov;
 } mongoc_cluster_t;
 
-void                   _mongoc_cluster_init        (mongoc_cluster_t             *cluster,
-                                                    const mongoc_uri_t           *uri,
-                                                    void                         *client);
-void                   _mongoc_cluster_destroy     (mongoc_cluster_t             *cluster);
+void
+_mongoc_cluster_init (mongoc_cluster_t   *cluster,
+                      const mongoc_uri_t *uri,
+                      void               *client);
+
+void
+_mongoc_cluster_destroy (mongoc_cluster_t *cluster);
+
+uint32_t
+_mongoc_cluster_select (mongoc_cluster_t             *cluster,
+                        mongoc_rpc_t                 *rpcs,
+                        size_t                        rpcs_len,
+                        const mongoc_write_concern_t *write_concern,
+                        const mongoc_read_prefs_t    *read_pref,
+                        bson_error_t                 *error /* OUT */);
 
 BSON_END_DECLS
 

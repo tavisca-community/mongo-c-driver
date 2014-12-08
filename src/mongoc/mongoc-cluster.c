@@ -226,12 +226,12 @@ _mongoc_cluster_destroy (mongoc_cluster_t *cluster) /* INOUT */
 
 uint32_t
 _mongoc_cluster_preselect (mongoc_collection_t          *collection,
-                              mongoc_opcode_t               opcode,
-                              const mongoc_write_concern_t *write_concern,
-                              const mongoc_read_prefs_t    *read_prefs,
-                              uint32_t                     *min_wire_version,
-                              uint32_t                     *max_wire_version,
-                              bson_error_t                 *error)
+                           mongoc_opcode_t               opcode,
+                           const mongoc_write_concern_t *write_concern,
+                           const mongoc_read_prefs_t    *read_prefs,
+                           uint32_t                     *min_wire_version,
+                           uint32_t                     *max_wire_version,
+                           bson_error_t                 *error)
 {
    uint32_t hint;
 
@@ -263,7 +263,7 @@ _mongoc_cluster_preselect (mongoc_collection_t          *collection,
  *       required set of rpc messages.  Takes read preference into account.
  *
  * Returns:
- *       A mongoc_cluster_node_t if successful, or NULL on failure, in
+ *       A server description's id (> 0) if successful, or 0 on failure, in
  *       which case error is also set.
  *
  * Side effects:
@@ -272,11 +272,10 @@ _mongoc_cluster_preselect (mongoc_collection_t          *collection,
  *--------------------------------------------------------------------------
  */
 
-mongoc_stream_t *
+uint32_t
 _mongoc_cluster_select(mongoc_cluster_t             *cluster,
                        mongoc_rpc_t                 *rpcs,
                        size_t                        rpcs_len,
-                       //uint32_t                      hint, // TODO SS what is this?
                        const mongoc_write_concern_t *write_concern,
                        const mongoc_read_prefs_t    *read_pref,
                        bson_error_t                 *error /* OUT */)
@@ -285,13 +284,14 @@ _mongoc_cluster_select(mongoc_cluster_t             *cluster,
    mongoc_server_description_t *selected_server;
    mongoc_ss_optype_t optype = MONGOC_SS_READ;
    mongoc_stream_t *stream;
+   uint32_t selected_id;
    int i;
 
    ENTRY;
 
-   bson_return_val_if_fail(cluster, NULL);
-   bson_return_val_if_fail(rpcs, NULL);
-   bson_return_val_if_fail(rpcs_len, NULL);
+   bson_return_val_if_fail(cluster, 0);
+   bson_return_val_if_fail(rpcs, 0);
+   bson_return_val_if_fail(rpcs_len, 0);
 
    /* pick the most restrictive optype */
    for (i = 0; (i < rpcs_len) && (optype == MONGOC_SS_READ); i++) {
@@ -323,14 +323,17 @@ _mongoc_cluster_select(mongoc_cluster_t             *cluster,
                                          error);
 
    if (!selected_server) {
-      RETURN(NULL);
+      RETURN(0);
    }
 
+   /* pre-load this stream if we don't already have it */
    stream = mongoc_set_get (cluster->nodes, selected_server->id);
-
-   if (! stream) {
+   if (!stream) {
       stream = _mongoc_cluster_add_node (cluster, selected_server, error);
    }
 
-   RETURN(stream);
+   selected_id = selected_server->id;
+   _mongoc_server_description_destroy(selected_server);
+
+   RETURN(selected_id);
 }
