@@ -31,7 +31,7 @@
 #include "mongoc-error.h"
 #include "mongoc-host-list-private.h"
 #include "mongoc-log.h"
-#include "mongoc-opcode.h"
+#include "mongoc-opcode-private.h"
 #include "mongoc-read-prefs-private.h"
 #include "mongoc-rpc-private.h"
 #ifdef MONGOC_ENABLE_SASL
@@ -211,47 +211,98 @@ _mongoc_cluster_destroy (mongoc_cluster_t *cluster) /* INOUT */
    EXIT;
 }
 
+
+/*
+ *--------------------------------------------------------------------------
+ *
+ * _mongoc_cluster_select_by_optype --
+ *
+ *       Internal server selection.
+ *
+ *--------------------------------------------------------------------------
+ */
+static uint32_t
+_mongoc_cluster_select_by_optype(mongoc_cluster_t *cluster,
+                                 mongoc_ss_optype_t optype,
+                                 const mongoc_write_concern_t *write_concern,
+                                 const mongoc_read_prefs_t    *read_prefs,
+                                 bson_error_t                 *error)
+{
+   mongoc_stream_t *stream;
+   mongoc_server_description_t *selected_server;
+   uint32_t selected_id;
+
+   ENTRY;
+
+   bson_return_val_if_fail(cluster, 0);
+   bson_return_val_if_fail(optype, 0);
+   bson_return_val_if_fail(write_concern, 0);
+   bson_return_val_if_fail(read_prefs, 0);
+
+   selected_server = _mongoc_sdam_select(cluster->client->sdam,
+                                         optype,
+                                         read_prefs,
+                                         error);
+
+   if (!selected_server) {
+      RETURN(0);
+   }
+
+   /* pre-load this stream if we don't already have it */
+   stream = mongoc_set_get (cluster->nodes, selected_server->id);
+   if (!stream) {
+      stream = _mongoc_cluster_add_node (cluster, selected_server, error);
+   }
+
+   selected_id = selected_server->id;
+   _mongoc_server_description_destroy(selected_server);
+
+   RETURN(selected_id);
+}
+
 /*
  *--------------------------------------------------------------------------
  *
  * _mongoc_cluster_preselect --
  *
- * Returns:
- *
- * Side effects:
- *       None.
+ *       Server selection by opcode with retries.
  *
  *--------------------------------------------------------------------------
  */
-
 uint32_t
-_mongoc_cluster_preselect (mongoc_collection_t          *collection,
-                           mongoc_opcode_t               opcode,
-                           const mongoc_write_concern_t *write_concern,
-                           const mongoc_read_prefs_t    *read_prefs,
-                           uint32_t                     *min_wire_version,
-                           uint32_t                     *max_wire_version,
-                           bson_error_t                 *error)
+_mongoc_cluster_preselect(mongoc_cluster_t             *cluster,
+                          mongoc_opcode_t               opcode,
+                          const mongoc_write_concern_t *write_concern,
+                          const mongoc_read_prefs_t    *read_prefs,
+                          bson_error_t                 *error)
 {
-   uint32_t hint;
+   int retry_count = 0;
+   uint32_t server = 0;
+   mongoc_read_mode_t read_mode;
+   mongoc_ss_optype_t optype = MONGOC_SS_READ;
 
-   ENTRY;
-
-   hint = 0;
-
-   /*
-
-   stream = mongoc_node_switch_get (cluster->node_switch, selected_server->id);
-
-   if (! stream) {
-      stream = _mongoc_cluster_add_node (cluster, selected_server, error);
-   }
-   */
-
-   if (hint) {
+   if (_mongoc_opcode_needs_primary(opcode)) {
+      optype = MONGOC_SS_WRITE;
    }
 
-   return hint;
+   /* we can run queries on secondaries if given the right read mode */
+   if (optype == MONGOC_SS_WRITE &&
+       opcode == MONGOC_OPCODE_QUERY) {
+      read_mode = mongoc_read_prefs_get_mode(read_prefs);
+      if ((read_mode & MONGOC_READ_SECONDARY) != 0) {
+         optype = MONGOC_SS_READ;
+      }
+   }
+
+   while (retry_count++ < MAX_RETRY_COUNT) {
+      server = _mongoc_cluster_select_by_optype(cluster, optype, write_concern,
+                                                read_prefs, error);
+      if (server > 0) {
+         break;
+      }
+   }
+
+   return server;
 }
 
 /*
@@ -277,14 +328,12 @@ _mongoc_cluster_select(mongoc_cluster_t             *cluster,
                        mongoc_rpc_t                 *rpcs,
                        size_t                        rpcs_len,
                        const mongoc_write_concern_t *write_concern,
-                       const mongoc_read_prefs_t    *read_pref,
+                       const mongoc_read_prefs_t    *read_prefs,
                        bson_error_t                 *error /* OUT */)
 {
    mongoc_read_mode_t read_mode = MONGOC_READ_PRIMARY;
-   mongoc_server_description_t *selected_server;
    mongoc_ss_optype_t optype = MONGOC_SS_READ;
-   mongoc_stream_t *stream;
-   uint32_t selected_id;
+   mongoc_opcode_t opcode;
    int i;
 
    ENTRY;
@@ -295,45 +344,24 @@ _mongoc_cluster_select(mongoc_cluster_t             *cluster,
 
    /* pick the most restrictive optype */
    for (i = 0; (i < rpcs_len) && (optype == MONGOC_SS_READ); i++) {
-      switch (rpcs[i].header.opcode) {
-      case MONGOC_OPCODE_KILL_CURSORS:
-      case MONGOC_OPCODE_GET_MORE:
-      case MONGOC_OPCODE_MSG:
-      case MONGOC_OPCODE_REPLY:
-         break;
-      case MONGOC_OPCODE_QUERY:
-         if ((read_mode & MONGOC_READ_SECONDARY) != 0) {
-            rpcs[i].query.flags |= MONGOC_QUERY_SLAVE_OK;
-         } else if (!(rpcs[i].query.flags & MONGOC_QUERY_SLAVE_OK)) {
+      opcode = rpcs[i].header.opcode;
+      if (_mongoc_opcode_needs_primary(opcode)) {
+         /* we can run queries on secondaries if given either:
+          * - a read mode of secondary
+          * - query flags where slave ok is set */
+         if (opcode == MONGOC_OPCODE_QUERY) {
+            read_mode = mongoc_read_prefs_get_mode(read_prefs);
+            if ((read_mode & MONGOC_READ_SECONDARY) != 0 ||
+                (rpcs[i].query.flags & MONGOC_QUERY_SLAVE_OK)) {
+               optype = MONGOC_SS_READ;
+            }
+         }
+         else {
             optype = MONGOC_SS_WRITE;
          }
-         break;
-      case MONGOC_OPCODE_DELETE:
-      case MONGOC_OPCODE_INSERT:
-      case MONGOC_OPCODE_UPDATE:
-      default:
-         optype = MONGOC_SS_WRITE;
-         break;
       }
    }
 
-   selected_server = _mongoc_sdam_select(cluster->client->sdam,
-                                         optype,
-                                         read_pref,
-                                         error);
-
-   if (!selected_server) {
-      RETURN(0);
-   }
-
-   /* pre-load this stream if we don't already have it */
-   stream = mongoc_set_get (cluster->nodes, selected_server->id);
-   if (!stream) {
-      stream = _mongoc_cluster_add_node (cluster, selected_server, error);
-   }
-
-   selected_id = selected_server->id;
-   _mongoc_server_description_destroy(selected_server);
-
-   RETURN(selected_id);
+   return _mongoc_cluster_select_by_optype(cluster, optype, write_concern,
+                                           read_prefs, error);
 }
