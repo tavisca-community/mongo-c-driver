@@ -72,12 +72,42 @@ void
 _mongoc_cluster_destroy (mongoc_cluster_t *cluster);
 
 uint32_t
+_mongoc_cluster_preselect(mongoc_cluster_t             *cluster,
+                          mongoc_opcode_t               opcode,
+                          const mongoc_write_concern_t *write_concern,
+                          const mongoc_read_prefs_t    *read_prefs,
+                          bson_error_t                 *error);
+
+uint32_t
 _mongoc_cluster_select (mongoc_cluster_t             *cluster,
                         mongoc_rpc_t                 *rpcs,
                         size_t                        rpcs_len,
                         const mongoc_write_concern_t *write_concern,
                         const mongoc_read_prefs_t    *read_pref,
                         bson_error_t                 *error /* OUT */);
+
+bool
+_mongoc_cluster_sendv_to_server (mongoc_cluster_t             *cluster,
+                                 mongoc_rpc_t                 *rpcs,
+                                 size_t                        rpcs_len,
+                                 uint32_t                      server_id,
+                                 const mongoc_write_concern_t *write_concern,
+                                 bson_error_t                 *error);
+
+uint32_t
+_mongoc_cluster_sendv (mongoc_cluster_t             *cluster,
+                       mongoc_rpc_t                 *rpcs,
+                       size_t                        rpcs_len,
+                       const mongoc_write_concern_t *write_concern,
+                       const mongoc_read_prefs_t    *read_prefs,
+                       bson_error_t                 *error);
+
+bool
+_mongoc_cluster_try_recv (mongoc_cluster_t *cluster,
+                          mongoc_rpc_t     *rpc,
+                          mongoc_buffer_t  *buffer,
+                          uint32_t          server_id,
+                          bson_error_t     *error);
 
 BSON_END_DECLS
 
