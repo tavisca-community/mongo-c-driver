@@ -78,6 +78,13 @@ _mongoc_cluster_preselect(mongoc_cluster_t             *cluster,
                           const mongoc_read_prefs_t    *read_prefs,
                           bson_error_t                 *error);
 
+mongoc_server_description_t *
+_mongoc_cluster_preselect_description (mongoc_cluster_t             *cluster,
+                                       mongoc_opcode_t               opcode,
+                                       const mongoc_write_concern_t *write_concern,
+                                       const mongoc_read_prefs_t    *read_prefs,
+                                       bson_error_t                 *error /* OUT */);
+
 uint32_t
 _mongoc_cluster_select (mongoc_cluster_t             *cluster,
                         mongoc_rpc_t                 *rpcs,

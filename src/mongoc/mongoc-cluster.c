@@ -286,9 +286,13 @@ _mongoc_cluster_destroy (mongoc_cluster_t *cluster) /* INOUT */
  *
  *       Internal server selection.
  *
+ *       NOTE: caller becomes the owner of returned server description
+ *       and must clean it up.
+ *
+ *
  *--------------------------------------------------------------------------
  */
-static uint32_t
+mongoc_server_description_t *
 _mongoc_cluster_select_by_optype(mongoc_cluster_t *cluster,
                                  mongoc_ss_optype_t optype,
                                  const mongoc_write_concern_t *write_concern,
@@ -297,7 +301,6 @@ _mongoc_cluster_select_by_optype(mongoc_cluster_t *cluster,
 {
    mongoc_stream_t *stream;
    mongoc_server_description_t *selected_server;
-   uint32_t selected_id;
 
    ENTRY;
 
@@ -312,39 +315,50 @@ _mongoc_cluster_select_by_optype(mongoc_cluster_t *cluster,
                                          error);
 
    if (!selected_server) {
-      RETURN(0);
+      RETURN(NULL);
    }
 
    /* pre-load this stream if we don't already have it */
    stream = mongoc_set_get (cluster->nodes, selected_server->id);
    if (!stream) {
+      // TODO: error handling, if we can't add stream should we still return
+      // this server description?
       stream = _mongoc_cluster_add_node (cluster, selected_server, error);
    }
 
-   selected_id = selected_server->id;
-   _mongoc_server_description_destroy(selected_server);
-
-   RETURN(selected_id);
+   RETURN(selected_server);
 }
 
 /*
  *--------------------------------------------------------------------------
  *
- * _mongoc_cluster_preselect --
+ * _mongoc_cluster_preselect_description --
  *
- *       Server selection by opcode with retries.
+ *       Server selection by opcode, with retries, returns full
+ *       server description.
+ *
+ *       NOTE: caller becomes the owner of returned server description
+ *       and must clean it up.
+ *
+ * Returns:
+ *       A mongoc_server_description_t, or NULL on failure (sets @error)
+ *
+ * Side effects:
+ *       May set @error.
+ *       May add new nodes to @cluster->nodes.
  *
  *--------------------------------------------------------------------------
  */
-uint32_t
-_mongoc_cluster_preselect(mongoc_cluster_t             *cluster,
-                          mongoc_opcode_t               opcode,
-                          const mongoc_write_concern_t *write_concern,
-                          const mongoc_read_prefs_t    *read_prefs,
-                          bson_error_t                 *error)
+
+mongoc_server_description_t *
+_mongoc_cluster_preselect_description (mongoc_cluster_t             *cluster,
+                                       mongoc_opcode_t               opcode,
+                                       const mongoc_write_concern_t *write_concern,
+                                       const mongoc_read_prefs_t    *read_prefs,
+                                       bson_error_t                 *error /* OUT */)
 {
    int retry_count = 0;
-   uint32_t server = 0;
+   mongoc_server_description_t *server;
    mongoc_read_mode_t read_mode;
    mongoc_ss_optype_t optype = MONGOC_SS_READ;
 
@@ -364,12 +378,43 @@ _mongoc_cluster_preselect(mongoc_cluster_t             *cluster,
    while (retry_count++ < MAX_RETRY_COUNT) {
       server = _mongoc_cluster_select_by_optype(cluster, optype, write_concern,
                                                 read_prefs, error);
-      if (server > 0) {
+      if (server) {
          break;
       }
    }
 
    return server;
+}
+
+
+/*
+ *--------------------------------------------------------------------------
+ *
+ * _mongoc_cluster_preselect --
+ *
+ *       Server selection by opcode with retries.
+ *
+ *--------------------------------------------------------------------------
+ */
+uint32_t
+_mongoc_cluster_preselect(mongoc_cluster_t             *cluster,
+                          mongoc_opcode_t               opcode,
+                          const mongoc_write_concern_t *write_concern,
+                          const mongoc_read_prefs_t    *read_prefs,
+                          bson_error_t                 *error)
+{
+   mongoc_server_description_t *server;
+   uint32_t server_id;
+
+   server = _mongoc_cluster_preselect_description(cluster, opcode, write_concern,
+                                                  read_prefs, error);
+   if (server) {
+      server_id = server->id;
+      _mongoc_server_description_destroy(server);
+      return server_id;
+   }
+
+   return 0;
 }
 
 /*
@@ -401,6 +446,8 @@ _mongoc_cluster_select(mongoc_cluster_t             *cluster,
    mongoc_read_mode_t read_mode = MONGOC_READ_PRIMARY;
    mongoc_ss_optype_t optype = MONGOC_SS_READ;
    mongoc_opcode_t opcode;
+   mongoc_server_description_t *server;
+   uint32_t server_id;
    int i;
 
    ENTRY;
@@ -429,8 +476,14 @@ _mongoc_cluster_select(mongoc_cluster_t             *cluster,
       }
    }
 
-   return _mongoc_cluster_select_by_optype(cluster, optype, write_concern,
-                                           read_prefs, error);
+   server = _mongoc_cluster_select_by_optype(cluster, optype, write_concern,
+                                             read_prefs, error);
+   if (server) {
+      server_id = server->id;
+      _mongoc_server_description_destroy(server);
+      return server_id;
+   }
+   return 0;
 }
 
 /*
