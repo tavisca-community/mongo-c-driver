@@ -36,14 +36,17 @@
 mongoc_sdam_t *
 _mongoc_sdam_new (const mongoc_uri_t *uri)
 {
-   // TODO
    mongoc_sdam_t *sdam;
+
+   bson_return_val_if_fail(uri, NULL);
 
    sdam = bson_malloc0(sizeof *sdam);
    sdam->users = 0;
    sdam->uri = uri;
 
    _mongoc_topology_description_init(&sdam->topology);
+
+   // TODO, hook up scanner once ready
 
    return sdam;
 }
