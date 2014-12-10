@@ -304,6 +304,10 @@ mongoc_sdam_scanner_start_scan (mongoc_sdam_scanner_t *ss,
 {
    mongoc_sdam_scanner_node_t *node, *tmp;
 
+   if (ss->in_progress) {
+      return;
+   }
+
    DL_FOREACH_SAFE (ss->nodes, node, tmp)
    {
       if (mongoc_sdam_scanner_node_setup (node)) {
@@ -321,5 +325,13 @@ bool
 mongoc_sdam_scanner_scan (mongoc_sdam_scanner_t *ss,
                           int32_t                timeout_msec)
 {
-   return mongoc_async_run (ss->async, timeout_msec);
+   bool r;
+   
+   r = mongoc_async_run (ss->async, timeout_msec);
+
+   if (! r) {
+      ss->in_progress = false;
+   }
+
+   return r;
 }
