@@ -169,11 +169,36 @@ _mongoc_sdam_select (mongoc_sdam_t *sdam,
                                                          optype,
                                                          read_prefs,
                                                          error);
-   // Q: necessary?
-   if (!selected_server) {
-      return NULL;
-   }
+
    return _mongoc_server_description_new_copy(selected_server);
+}
+
+/*
+ *-------------------------------------------------------------------------
+ *
+ * _mongoc_sdam_server_by_id --
+ *
+ *       Get the server description for @id, if that server is present
+ *       in @description. Otherwise, return NULL.
+ *
+ *       NOTE: this method returns a copy of the original server
+ *       description. Callers must own and clean up this copy.
+ *
+ * Returns:
+ *       A mongoc_server_description_t, or NULL.
+ *
+ * Side effects:
+ *       None.
+ *
+ *-------------------------------------------------------------------------
+ */
+
+mongoc_server_description_t *
+_mongoc_sdam_server_by_id (mongoc_sdam_t *sdam, uint32_t id)
+{
+   return _mongoc_server_description_new_copy(
+             _mongoc_topology_description_server_by_id(
+                 &sdam->topology, id));
 }
 
 /*

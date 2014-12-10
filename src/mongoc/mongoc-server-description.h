@@ -41,7 +41,6 @@ typedef struct _mongoc_server_description_t mongoc_server_description_t;
 
 struct _mongoc_server_description_t
 {
-   mongoc_server_description_t     *next;
    uint32_t                         id;
    char                            *set_name;
    char                            *connection_address;

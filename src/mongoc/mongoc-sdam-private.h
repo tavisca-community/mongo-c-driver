@@ -52,6 +52,10 @@ _mongoc_sdam_select (mongoc_sdam_t             *sdam,
                      const mongoc_read_prefs_t *read_prefs,
                      bson_error_t              *error);
 
+mongoc_server_description_t *
+_mongoc_sdam_server_by_id (mongoc_sdam_t *sdam,
+                           uint32_t       id);
+
 void
 _mongoc_sdam_force_scan (mongoc_sdam_t *sdam);
 

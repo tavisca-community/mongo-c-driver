@@ -53,7 +53,6 @@ _mongoc_server_description_init (mongoc_server_description_t *description,
    memset (description, 0, sizeof *description);
 
    description->id = id;
-   description->next = NULL;
    description->set_name = NULL;
    description->connection_address = bson_strdup(address);
    description->error = NULL; // TODO SDAM change if this changes types
@@ -236,7 +235,6 @@ _mongoc_server_description_new_copy (mongoc_server_description_t *description)
    copy = bson_malloc0(sizeof (*copy));
 
    copy->id = description->id;
-   copy->next = NULL;
    copy->set_name = description->set_name;
    copy->connection_address = description->connection_address;
    copy->error = NULL;

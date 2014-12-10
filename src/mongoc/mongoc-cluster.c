@@ -127,7 +127,7 @@ _mongoc_cluster_add_node (mongoc_cluster_t *cluster,
 /*
  *--------------------------------------------------------------------------
  *
- * _mongoc_cluster_remove_node --
+ * _mongoc_cluster_disconnect_node --
  *
  *       Remove a node from the set of nodes. This should be done if
  *       a stream in the set is found to be invalid.
@@ -140,8 +140,9 @@ _mongoc_cluster_add_node (mongoc_cluster_t *cluster,
  *
  *--------------------------------------------------------------------------
  */
-static void
-_mongoc_cluster_remove_node (mongoc_cluster_t *cluster, uint32_t server_id)
+
+void
+_mongoc_cluster_disconnect_node (mongoc_cluster_t *cluster, uint32_t server_id)
 {
    mongoc_set_rm(cluster->nodes, server_id);
 }
@@ -185,7 +186,7 @@ _mongoc_cluster_fetch_stream (mongoc_cluster_t *cluster,
                   MONGOC_ERROR_STREAM_NOT_ESTABLISHED,
                   "No stream available for server_id %ul", server_id);
 
-   _mongoc_cluster_remove_node(cluster, server_id);
+   _mongoc_cluster_disconnect_node(cluster, server_id);
 
    return NULL;
 }
@@ -838,7 +839,7 @@ _mongoc_cluster_try_recv (mongoc_cluster_t *cluster,
    if (!_mongoc_buffer_append_from_stream (buffer, stream, 4,
                                            cluster->sockettimeoutms, error)) {
       mongoc_counter_protocol_ingress_error_inc ();
-      _mongoc_cluster_remove_node(cluster, server_id);
+      _mongoc_cluster_disconnect_node(cluster, server_id);
       RETURN (false);
    }
 
@@ -852,7 +853,7 @@ _mongoc_cluster_try_recv (mongoc_cluster_t *cluster,
                       MONGOC_ERROR_PROTOCOL,
                       MONGOC_ERROR_PROTOCOL_INVALID_REPLY,
                       "Corrupt or malicious reply received.");
-      _mongoc_cluster_remove_node(cluster, server_id);
+      _mongoc_cluster_disconnect_node(cluster, server_id);
       mongoc_counter_protocol_ingress_error_inc ();
       RETURN (false);
    }
@@ -862,7 +863,7 @@ _mongoc_cluster_try_recv (mongoc_cluster_t *cluster,
     */
    if (!_mongoc_buffer_append_from_stream (buffer, stream, msg_len - 4,
                                            cluster->sockettimeoutms, error)) {
-      _mongoc_cluster_remove_node (cluster, server_id);
+      _mongoc_cluster_disconnect_node (cluster, server_id);
       mongoc_counter_protocol_ingress_error_inc ();
       RETURN (false);
    }
@@ -875,7 +876,7 @@ _mongoc_cluster_try_recv (mongoc_cluster_t *cluster,
                       MONGOC_ERROR_PROTOCOL,
                       MONGOC_ERROR_PROTOCOL_INVALID_REPLY,
                       "Failed to decode reply from server.");
-      _mongoc_cluster_remove_node (cluster, server_id);
+      _mongoc_cluster_disconnect_node (cluster, server_id);
       mongoc_counter_protocol_ingress_error_inc ();
       RETURN (false);
    }

@@ -71,6 +71,10 @@ _mongoc_cluster_init (mongoc_cluster_t   *cluster,
 void
 _mongoc_cluster_destroy (mongoc_cluster_t *cluster);
 
+void
+_mongoc_cluster_disconnect_node (mongoc_cluster_t *cluster,
+                                 uint32_t          id);
+
 uint32_t
 _mongoc_cluster_preselect(mongoc_cluster_t             *cluster,
                           mongoc_opcode_t               opcode,
