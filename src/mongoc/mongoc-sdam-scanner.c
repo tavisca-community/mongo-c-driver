@@ -269,6 +269,8 @@ mongoc_sdam_scanner_node_setup (mongoc_sdam_scanner_node_t *node)
 
    if (node->stream) { return true; }
 
+   /* TODO hook up a callback for this so you can use your own stream initiator */
+
    if (node->host.family == AF_UNIX) {
       sock_stream = mongoc_sdam_scanner_node_connect_unix (node, &error);
    } else {
@@ -297,8 +299,8 @@ mongoc_sdam_scanner_node_setup (mongoc_sdam_scanner_node_t *node)
 }
 
 void
-mongoc_sdam_scanner_scan (mongoc_sdam_scanner_t *ss,
-                          int32_t                timeout_msec)
+mongoc_sdam_scanner_start_scan (mongoc_sdam_scanner_t *ss,
+                                int32_t                timeout_msec)
 {
    mongoc_sdam_scanner_node_t *node, *tmp;
 
@@ -312,7 +314,12 @@ mongoc_sdam_scanner_scan (mongoc_sdam_scanner_t *ss,
                                        timeout_msec);
       }
    }
+}
 
-   while (mongoc_async_run (ss->async, -1)) {
-   }
+
+bool
+mongoc_sdam_scanner_scan (mongoc_sdam_scanner_t *ss,
+                          int32_t                timeout_msec)
+{
+   return mongoc_async_run (ss->async, timeout_msec);
 }

@@ -81,9 +81,12 @@ mongoc_sdam_scanner_rm (mongoc_sdam_scanner_t *ss,
                         uint32_t               id);
 
 void
+mongoc_sdam_scanner_start_scan (mongoc_sdam_scanner_t *ss,
+                                int32_t                timeout_msec);
+
+bool
 mongoc_sdam_scanner_scan (mongoc_sdam_scanner_t *ss,
                           int32_t                timeout_msec);
-
 
 BSON_END_DECLS
 
