@@ -207,9 +207,8 @@ _mongoc_cursor_new (mongoc_client_t           *client,
    }
 
    /* we can't have exhaust queries with sharded clusters */
-   // TODO: make this work
-   /*   if ((flags & MONGOC_QUERY_EXHAUST) &&
-       (client->cluster.topology_description->type == MONGOC_CLUSTER_TYPE_SHARDED)) {
+   if ((flags & MONGOC_QUERY_EXHAUST) &&
+       (client->sdam->topology.type == MONGOC_TOPOLOGY_SHARDED)) {
       bson_set_error (&cursor->error,
                       MONGOC_ERROR_CURSOR,
                       MONGOC_ERROR_CURSOR_INVALID_CURSOR,
@@ -217,7 +216,6 @@ _mongoc_cursor_new (mongoc_client_t           *client,
       MARK_FAILED (cursor);
       GOTO (finish);
    }
-   */
 
    /*
     * Check types of various optional parameters.

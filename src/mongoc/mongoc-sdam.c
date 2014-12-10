@@ -25,6 +25,10 @@
  *
  *       Creates and returns a new SDAM object.
  *
+ *       NOTE: use _mongoc_sdam_grab() and _mongoc_sdam_release() to
+ *       manage the lifetime of this object. Do not attempt to use this
+ *       object before calling _mongoc_sdam_grab().
+ *
  * Returns:
  *       A new SDAM object.
  *
@@ -107,6 +111,20 @@ _mongoc_sdam_release (mongoc_sdam_t *sdam)
  *
  * _mongoc_sdam_destroy --
  *
+ *       Free the memory associated with this sdam object.
+ *
+ *       NOTE: users should not call this directly; rather, use
+ *       _mongoc_sdam_grab() and _mongoc_sdam_release() to indicate
+ *       posession of this object.
+ *
+ * Returns:
+ *       None.
+ *
+ * Side effects:
+ *       @sdam will be cleaned up. Any users using this object without
+ *       having called _mongoc_sdam_grab() will find themselves with
+ *       a null pointer.
+ *
  *-------------------------------------------------------------------------
  */
 void
@@ -114,6 +132,7 @@ _mongoc_sdam_destroy (mongoc_sdam_t *sdam)
 {
    _mongoc_topology_description_destroy(&sdam->topology);
    bson_free(sdam);
+   sdam = NULL;
 }
 
 /*
@@ -121,8 +140,18 @@ _mongoc_sdam_destroy (mongoc_sdam_t *sdam)
  *
  * _mongoc_sdam_select --
  *
+ *       Selects a server description for an operation based on @optype
+ *       and @read_prefs.
+ *
  *       NOTE: this method returns a copy of the original server
  *       description. Callers must own and clean up this copy.
+ *
+ * Returns:
+ *       A mongoc_server_description_t, or NULL on failure, in which case
+ *       @error will be set.
+ *
+ * Side effects:
+ *       @error may be set.
  *
  *-------------------------------------------------------------------------
  */
@@ -149,22 +178,42 @@ _mongoc_sdam_select (mongoc_sdam_t *sdam,
 
 /*
  *-------------------------------------------------------------------------
+ *
+ * _mongoc_sdam_force_scan --
+ *
+ *       Force an immediate scan of the topology.
+ *
+ *       Scan will not run if there is already a scan in progress.
+ *       If MONGOC_SDAM_HEARTBEAT_FREQUENCY_MS milliseconds have not
+ *       passed since the previous scan, this scan will wait to run until
+ *       that time interval has elapsed.
+ *
+ * Returns:
+ *       None.
+ *
+ * Side effects:
+ *       May affect topology state.
+ *       Depending on configuration, may issue blocking network calls.
+ *
  *-------------------------------------------------------------------------
  */
 void
 _mongoc_sdam_force_scan (mongoc_sdam_t *sdam)
 {
-   // TODO SDAM
+   // TODO once scanner is done
    return;
 }
 
 /*
  *-------------------------------------------------------------------------
+ *
+ * _mongoc_sdam_ismaster_callback --
+ *
  *-------------------------------------------------------------------------
  */
 void
-_mongoc_sdam_ismaster_callback (mongoc_sdam_t *sdam, const bson_t  *ismaster)
+_mongoc_sdam_ismaster_callback (mongoc_sdam_t *sdam, const bson_t *ismaster)
 {
-   // TODO SDAM
+   // TODO once scanner is done
    return;
 }
