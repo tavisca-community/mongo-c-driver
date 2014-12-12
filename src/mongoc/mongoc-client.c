@@ -476,7 +476,7 @@ _mongoc_client_recv (mongoc_client_t *client,
    bson_return_val_if_fail(rpc, false);
    bson_return_val_if_fail(buffer, false);
    bson_return_val_if_fail(server_id, false);
-   bson_return_val_if_fail(server_id < 1, false);
+//   bson_return_val_if_fail(server_id < 1, false);
 
    return _mongoc_cluster_try_recv (&client->cluster, rpc, buffer,
                                     server_id, error);
@@ -671,6 +671,10 @@ mongoc_client_new(const char *uri_string)
    }
 
    sdam = _mongoc_sdam_new(uri);
+
+   mongoc_uri_destroy (uri);
+
+   _mongoc_sdam_background_thread_start(sdam);
    return _mongoc_client_new(uri_string, sdam);
 }
 
@@ -834,6 +838,7 @@ mongoc_client_new_from_uri (const mongoc_uri_t *uri)
    uristr = mongoc_uri_get_string(uri);
 
    sdam = _mongoc_sdam_new(uri);
+   _mongoc_sdam_background_thread_start(sdam);
    return _mongoc_client_new(uristr, sdam);
 }
 
@@ -1177,6 +1182,10 @@ _mongoc_client_warm_up (mongoc_client_t *client,
                                          write_concern,
                                          read_prefs,
                                          error);
+
+   mongoc_write_concern_destroy (write_concern);
+   mongoc_read_prefs_destroy (read_prefs);
+
    return (server_id > 0);
 }
 

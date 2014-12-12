@@ -20,18 +20,17 @@
 #include "mongoc-read-prefs-private.h"
 #include "mongoc-server-description.h"
 
-#define MONGOC_TOPOLOGY_DESCRIPTION_TYPES 4 // TODO: what about Single??
-
 #define MONGOC_SS_DEFAULT_TIMEOUT_MS 30000
 #define MONGOC_SS_DEFAULT_LOCAL_THRESHOLD_MS 15
 
 typedef enum
    {
-      MONGOC_TOPOLOGY_SINGLE,
+      MONGOC_TOPOLOGY_UNKNOWN,
+      MONGOC_TOPOLOGY_SHARDED,
       MONGOC_TOPOLOGY_RS_NO_PRIMARY,
       MONGOC_TOPOLOGY_RS_WITH_PRIMARY,
-      MONGOC_TOPOLOGY_SHARDED,
-      MONGOC_TOPOLOGY_UNKNOWN,
+      MONGOC_TOPOLOGY_SINGLE,
+      MONGOC_TOPOLOGY_DESCRIPTION_TYPES,
    } mongoc_topology_description_type_t;
 
 typedef struct _mongoc_topology_description_t
@@ -56,9 +55,13 @@ _mongoc_topology_description_init (mongoc_topology_description_t *description);
 void
 _mongoc_topology_description_destroy (mongoc_topology_description_t *description);
 
-void
-_mongoc_topology_description_handle_ismaster (mongoc_topology_description_t *topology,
-                                              const bson_t                  *ismaster);
+bool
+_mongoc_topology_description_handle_ismaster (
+   mongoc_topology_description_t *topology,
+   mongoc_server_description_t   *sd,
+   const bson_t                  *reply,
+   int64_t                        rtt_msec,
+   bson_error_t                  *error);
 
 mongoc_server_description_t *
 _mongoc_topology_description_select (mongoc_topology_description_t *description,
@@ -69,5 +72,9 @@ _mongoc_topology_description_select (mongoc_topology_description_t *description,
 mongoc_server_description_t *
 _mongoc_topology_description_server_by_id (mongoc_topology_description_t *description,
                                            uint32_t                       id);
+
+uint32_t
+_mongoc_topology_description_add_server (mongoc_topology_description_t *topology,
+                                         const char                    *server);
 
 #endif /* MONGOC_TOPOLOGY_DESCRIPTION_H */
