@@ -43,17 +43,24 @@ _mongoc_topology_server_dtor (void *server_,
  *--------------------------------------------------------------------------
  */
 void
-_mongoc_topology_description_init (mongoc_topology_description_t *description)
+_mongoc_topology_description_init (mongoc_topology_description_t *description,
+                                   mongoc_topology_cb_t          *cb)
 {
    ENTRY;
 
    bson_return_if_fail(description);
+
+   memset (description, sizeof (*description), 0);
 
    description->type = MONGOC_TOPOLOGY_UNKNOWN;
    description->servers = mongoc_set_new(8, _mongoc_topology_server_dtor, NULL);
    description->set_name = NULL;
    description->compatible = true; // TODO: different default?
    description->compatibility_error = NULL;
+
+   if (cb) {
+      memcpy (&description->cb, cb, sizeof (*cb));
+   }
 
    EXIT;
 }
@@ -310,8 +317,11 @@ void
 _mongoc_topology_description_remove_server (mongoc_topology_description_t *description,
                                             mongoc_server_description_t   *server)
 {
+   if (description->cb.rm) {
+      description->cb.rm(server);
+   }
+
    mongoc_set_rm(description->servers, server->id);
-   // TODO: some sort of callback to clusters?
 }
 
 /*
@@ -475,6 +485,11 @@ _mongoc_topology_description_add_server (mongoc_topology_description_t *topology
    _mongoc_server_description_init(description, server, id);
 
    mongoc_set_add(topology->servers, id, description);
+
+   if (topology->cb.add) {
+      topology->cb.add(description);
+   }
+
    return id;
 }
 

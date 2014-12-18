@@ -340,7 +340,7 @@ mongoc_sdam_scanner_scan (mongoc_sdam_scanner_t *ss,
                           int32_t                timeout_msec)
 {
    bool r;
-   
+
    r = mongoc_async_run (ss->async, timeout_msec);
 
    if (! r) {

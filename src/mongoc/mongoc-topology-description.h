@@ -33,6 +33,11 @@ typedef enum
       MONGOC_TOPOLOGY_DESCRIPTION_TYPES,
    } mongoc_topology_description_type_t;
 
+typedef struct {
+   void (*add)(const mongoc_server_description_t *);
+   void (*rm)(const mongoc_server_description_t *);
+} mongoc_topology_cb_t;
+
 typedef struct _mongoc_topology_description_t
 {
    mongoc_topology_description_type_t type;
@@ -41,6 +46,7 @@ typedef struct _mongoc_topology_description_t
    bool                               compatible;
    char                              *compatibility_error;
    uint32_t                           max_server_id;
+   mongoc_topology_cb_t               cb;
 } mongoc_topology_description_t;
 
 typedef enum
@@ -50,7 +56,8 @@ typedef enum
    } mongoc_ss_optype_t;
 
 void
-_mongoc_topology_description_init (mongoc_topology_description_t *description);
+_mongoc_topology_description_init (mongoc_topology_description_t *description,
+                                   mongoc_topology_cb_t          *cb);
 
 void
 _mongoc_topology_description_destroy (mongoc_topology_description_t *description);

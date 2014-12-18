@@ -115,6 +115,7 @@ test_sdam_scanner(void)
 
    for (i = 0; i < NSERVERS; i++) {
       mock_server_quit (servers[i], 0);
+      mock_server_destroy (servers[i]);
    }
 }
 

@@ -20,8 +20,6 @@
 
 #include "utlist.h"
 
-#define SCAN_BLOCK_MSEC 10
-
 void
 _mongoc_sdam_background_thread_stop (mongoc_sdam_t *sdam);
 
@@ -32,21 +30,34 @@ _mongoc_sdam_scanner_cb (uint32_t      id,
                          void         *data,
                          bson_error_t *error)
 {
+   bool r;
    mongoc_sdam_t *sdam;
    mongoc_server_description_t *sd;
+   mongoc_topology_description_type_t type;
 
    sdam = data;
 
+   /* we're the only writer, so reading without the lock is fine */
    sd = _mongoc_topology_description_server_by_id (&sdam->topology, id);
 
    if (sd) {
-      sdam->got_ismaster = true;
+      type = sdam->topology.type;
 
-      return _mongoc_topology_description_handle_ismaster (
-         &sdam->topology, sd, reply, rtt_msec, error);
+      /* hold the lock while we update */
+      mongoc_mutex_lock (&sdam->mutex);
+      r = _mongoc_topology_description_handle_ismaster (&sdam->topology, sd, reply, rtt_msec, error);
+
+      if (type == sdam->topology.type) {
+         /* wake up all clients if we found any topology changes */
+         mongoc_cond_broadcast (&sdam->cond_client);
+      }
+
+      mongoc_mutex_unlock (&sdam->mutex);
    } else {
-      return false;
+      r = false;
    }
+
+   return r;
 }
 
 /*
@@ -84,7 +95,7 @@ _mongoc_sdam_new (const mongoc_uri_t *uri)
    /* TODO replace this */
    sdam->timeout_msec = 10000;
 
-   _mongoc_topology_description_init(&sdam->topology);
+   _mongoc_topology_description_init(&sdam->topology, NULL);
    sdam->scanner = mongoc_sdam_scanner_new (_mongoc_sdam_scanner_cb, sdam);
 
    mongoc_mutex_init (&sdam->mutex);
@@ -226,6 +237,8 @@ _mongoc_sdam_select (mongoc_sdam_t             *sdam,
    now = bson_get_monotonic_time ();
    expire_at = now + timeout_msec;
 
+   int64_t before = now;
+
    mongoc_mutex_lock (&sdam->mutex);
 
    for (;;) {
@@ -300,33 +313,6 @@ _mongoc_sdam_server_by_id (mongoc_sdam_t *sdam, uint32_t id)
    return sd;
 }
 
-/*
- *-------------------------------------------------------------------------
- *
- * _mongoc_sdam_force_scan --
- *
- *       Force an immediate scan of the topology.
- *
- * Returns:
- *       None.
- *
- * Side effects:
- *       May affect topology state.
- *       Depending on configuration, may issue blocking network calls.
- *
- *-------------------------------------------------------------------------
- */
-
-void
-_mongoc_sdam_force_scan (mongoc_sdam_t *sdam)
-{
-   mongoc_sdam_scanner_start_scan (sdam->scanner, sdam->timeout_msec);
-   mongoc_sdam_scanner_scan (sdam->scanner, sdam->timeout_msec);
-
-   return;
-}
-
-
 void
 _mongoc_sdam_start_scan (mongoc_sdam_t *sdam)
 {
@@ -364,6 +350,8 @@ _mongoc_sdam_start_scan (mongoc_sdam_t *sdam)
 }
 
 
+/* not threadsafe, the expectation is that we're either single threaded or only
+ * the background thread scans */
 bool
 _mongoc_sdam_scan (mongoc_sdam_t *sdam,
                    int64_t        work_msec)
@@ -371,33 +359,13 @@ _mongoc_sdam_scan (mongoc_sdam_t *sdam,
    int64_t now;
    int64_t expire_at;
    bool keep_going = true;
-   bool got_ismaster;
 
    now = bson_get_monotonic_time ();
    expire_at = now + work_msec;
 
    /* while there is more work to do and we haven't timed out */
    while (keep_going && now < expire_at) {
-      /* hold the lock for a full poll pass */
-      mongoc_mutex_lock (&sdam->mutex);
-
-      /* our callback sets got_ismaster.  Let's us see if anything happened
-       * that would warrant walking up clients in a given slice */
-      sdam->got_ismaster = false;
-
-      /* block for no more than SCAN_BLOCK_MSEC.  We want to let others read in
-       * between our topology updates */
-      keep_going = mongoc_sdam_scanner_scan (
-         sdam->scanner, MIN (SCAN_BLOCK_MSEC, expire_at - now));
-
-      got_ismaster = sdam->got_ismaster;
-
-      if (got_ismaster) {
-         /* wake up all clients if we found any topology changes */
-         mongoc_cond_broadcast (&sdam->cond_client);
-      }
-
-      mongoc_mutex_unlock (&sdam->mutex);
+      keep_going = mongoc_sdam_scanner_scan (sdam->scanner, expire_at - now);
 
       if (keep_going) {
          now = bson_get_monotonic_time ();

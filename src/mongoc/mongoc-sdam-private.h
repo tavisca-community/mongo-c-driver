@@ -78,9 +78,6 @@ _mongoc_sdam_server_by_id (mongoc_sdam_t *sdam,
                            uint32_t       id);
 
 void
-_mongoc_sdam_force_scan (mongoc_sdam_t *sdam);
-
-void
 _mongoc_sdam_start_scan (mongoc_sdam_t *sdam);
 
 bool

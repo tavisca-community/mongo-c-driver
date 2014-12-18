@@ -675,6 +675,8 @@ mongoc_client_new(const char *uri_string)
    mongoc_uri_destroy (uri);
 
    _mongoc_sdam_background_thread_start(sdam);
+//   _mongoc_sdam_start_scan (sdam);
+//   _mongoc_sdam_scan (sdam, 10000);
    return _mongoc_client_new(uri_string, sdam);
 }
 
@@ -839,6 +841,8 @@ mongoc_client_new_from_uri (const mongoc_uri_t *uri)
 
    sdam = _mongoc_sdam_new(uri);
    _mongoc_sdam_background_thread_start(sdam);
+//   _mongoc_sdam_start_scan (sdam);
+//   _mongoc_sdam_scan (sdam, 10000);
    return _mongoc_client_new(uristr, sdam);
 }
 

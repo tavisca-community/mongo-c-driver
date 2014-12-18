@@ -134,7 +134,8 @@ test_ismaster_impl (bool with_ssl)
 
    for (i = 0; i < NSERVERS; i++) {
       mock_server_quit (servers[i], 0);
-   //   mongoc_stream_destroy (sock_streams[i]);
+      mock_server_destroy (servers[i]);
+      mongoc_stream_destroy (sock_streams[i]);
    }
 }
 
