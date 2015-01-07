@@ -71,6 +71,8 @@ test_replica_set_ssl_LDADD = $(TEST_LIBS)
 
 
 test_libmongoc_SOURCES = \
+	tests/json-test.c \
+	tests/json-test.h \
 	tests/mock-server.c \
 	tests/mock-server.h \
 	tests/test-libmongoc.c \
@@ -91,6 +93,7 @@ test_libmongoc_SOURCES = \
 	tests/test-mongoc-read-prefs.c \
 	tests/test-mongoc-rpc.c \
 	tests/test-mongoc-sdam-scanner.c \
+	tests/test-mongoc-server-selection.c \
 	tests/test-mongoc-set.c \
 	tests/test-mongoc-stream.c \
 	tests/test-mongoc-uri.c \

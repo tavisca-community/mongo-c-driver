@@ -42,6 +42,7 @@ extern void test_queue_install            (TestSuite *suite);
 extern void test_read_prefs_install       (TestSuite *suite);
 extern void test_rpc_install              (TestSuite *suite);
 extern void test_sdam_scanner_install     (TestSuite *suite);
+extern void test_server_selection_install (TestSuite *suite);
 extern void test_set_install              (TestSuite *suite);
 extern void test_stream_install           (TestSuite *suite);
 extern void test_uri_install              (TestSuite *suite);
@@ -148,6 +149,7 @@ main (int   argc,
    test_read_prefs_install (&suite);
    test_rpc_install (&suite);
    test_sdam_scanner_install (&suite);
+   test_server_selection_install (&suite);
    test_set_install (&suite);
    test_stream_install (&suite);
    test_uri_install (&suite);
